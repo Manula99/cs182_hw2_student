@@ -34,7 +34,7 @@ def compute_saliency_maps(X, y, model):
     prediction = model(X)
     loss = prediction.gather(1, y.view(-1, 1)).squeeze().sum()
     loss.backward()
-    saliency, _ = torch.max(X.grad, 1)
+    saliency, _ = torch.max(torch.abs(X.grad), 1)
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
