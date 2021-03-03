@@ -20,7 +20,8 @@ def content_loss(content_weight, content_current, content_target):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    diff = content_current - content_target
+    return (content_weight * (diff * diff).sum())
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -43,7 +44,9 @@ def gram_matrix(features, normalize=True):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    N, C, H, W = list(features.size())
+    F = torch.flatten(features, start_dim=2)
+    return torch.matmul(F, torch.transpose(F, 1, 2)) / (normalize * H * W * C + 1 * (not normalize))
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -72,7 +75,14 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    L = torch.tensor(0, dtype=torch.long)
+
+    for i in range(len(style_layers)):
+        G = gram_matrix(feats[style_layers[i]])
+        A = style_targets[i]
+        diff = G - A
+        L += torch.tensor(style_weights[i] * (diff * diff).sum(), dtype=torch.long)
+    return L
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -94,7 +104,12 @@ def tv_loss(img, tv_weight):
     ##############################################################################
     #                               YOUR CODE HERE                               #
     ##############################################################################
-    return None
+    _, __, H, W = list(img.size())
+    img1 = img.narrow_copy(2, 0, H-1).narrow(3, 0, W-1)
+    img2 = img.narrow_copy(2, 1, H-1).narrow(3, 0, W-1)
+    img3 = img.narrow_copy(3, 1, W-1).narrow(2, 0, H-1)
+    diff1 = img2 - img1; diff2 = img3 - img1
+    return tv_weight * ((diff1 * diff1).sum() + (diff2 * diff2).sum())
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################

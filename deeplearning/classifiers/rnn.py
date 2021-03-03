@@ -1,7 +1,7 @@
 from builtins import range
 from builtins import object
 import numpy as np
-
+import pdb
 from deeplearning.layers import *
 from deeplearning.rnn_layers import *
 
@@ -137,7 +137,23 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
+        #print("Wx: " , Wx.shape); print("Wh: ", Wh.shape); print("Wb: ", b.shape)
+        cache = {}
+        h0, cache['h0'] = affine_forward(features, W_proj, b_proj)
+        X, cache['X'] = word_embedding_forward(captions_in, W_embed)
+        #pdb.set_trace()
+        rnn = None
+        if self.cell_type == 'rnn':
+            rnn, cache['rnn'] = rnn_forward(X, h0, Wx, Wh, b)
+        else:
+            rnn, cache['rnn'] = lstm_forward(X, h0, Wx, Wh, b)
+        temp, cache['temp'] = temporal_affine_forward(rnn, W_vocab, b_vocab)
+        loss, dx = temporal_softmax_loss(temp, captions_out, mask, False)
+
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, cache['temp'])
+        dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, cache['rnn']) if self.cell_type == 'rnn' else lstm_backward(dx, cache['rnn'])
+        grads['W_embed'] = word_embedding_backward(dx, cache['X'])
+        dx, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache['h0'])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -199,7 +215,22 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
+        #print("Wx: " , Wx.shape); print("Wh: ", Wh.shape); print("Wb: ", b.shape)
+        prev_h, _ = affine_forward(features, W_proj, b_proj)
+        caption = np.array([[self._start]] * N)
+        #assert caption.shape[0] == N and caption.shape[1] == Wx.shape[0]
+        prev_c = np.zeros_like(prev_h)
+        for i in range(max_length):
+            embedded, _ = word_embedding_forward(caption, W_embed)
+            if self.cell_type == 'rnn':
+                prev_h, _ = rnn_step_forward(embedded, prev_h, Wx, Wh, b)
+                scores, _ = temporal_affine_forward(prev_h, W_vocab, b_vocab)
+            else:
+                prev_h, prev_c, _ = lstm_step_forward(embedded[:,0,:], prev_h, prev_c, Wx, Wh, b)
+                scores, _ = temporal_affine_forward(prev_h[:, np.newaxis, :], W_vocab, b_vocab)
+            #prev_h = prev_h[:, np.newaxis, :]
+            caption = np.argmax(scores, axis=2)
+            captions[:, i] = caption[:, 0]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

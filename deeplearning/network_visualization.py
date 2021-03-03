@@ -31,7 +31,10 @@ def compute_saliency_maps(X, y, model):
     # to each input image. You first want to compute the loss over the correct   #
     # scores, and then compute the gradients with torch.autograd.gard.           #
     ##############################################################################
-    pass
+    prediction = model(X)
+    loss = prediction.gather(1, y.view(-1, 1)).squeeze().sum()
+    loss.backward()
+    saliency, _ = torch.max(X.grad, 1)
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
@@ -69,7 +72,17 @@ def make_fooling_image(X, target_y, model):
     # in fewer than 100 iterations of gradient ascent.                           #
     # You can print your progress over iterations to check your algorithm.       #
     ##############################################################################
-    pass
+    #y = [0] * 1000; y = [y]
+    #y[0][target_y] = 1
+    y = torch.LongTensor([target_y])
+    for _ in range(100):
+        prediction = model(X_fooling)
+        #print(prediction)
+        loss = prediction[0][target_y]
+        X_fooling.retain_grad()
+        loss.backward()
+        dX = X_fooling.grad / (X_fooling.grad.data.norm()) * (learning_rate)
+        X_fooling = X_fooling + dX
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
@@ -98,7 +111,11 @@ def update_class_visulization(model, target_y, l2_reg, learning_rate, img):
     # L2 regularization term!                                              #
     # Be very careful about the signs of elements in your code.            #
     ########################################################################
-    pass
+    prediction = model(img);
+    loss = prediction[0][target_y] - l2_reg * torch.linalg.norm(torch.flatten(img))**2
+    img.retain_grad()
+    loss.backward()
+    img = img + img.grad * learning_rate
     ########################################################################
     #                             END OF YOUR CODE                         #
     ########################################################################
